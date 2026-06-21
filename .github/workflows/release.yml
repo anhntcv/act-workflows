@@ -73,8 +73,9 @@ jobs:
           sha256sum * > checksums.txt
 
       - name: Create GitHub Release
-        if: success() && env.ACT != 'true' && (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch')
+        if: success() && (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')))
         uses: softprops/action-gh-release@v2
+        continue-on-error: ${{ env.ACT == 'true' }}
         with:
           files: |
             dist/*
