@@ -80,8 +80,41 @@ jobs:
           files: |
             dist/*
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}
+          name: Release ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}
+          body: |
+            ## 🚀 Release Info - ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}
+            
+            ### 📦 Nền tảng được build sẵn (Pre-built Binaries):
+            * **Linux**: `amd64`, `arm64`
+            * **macOS (Darwin)**: `amd64` (Intel), `arm64` (Apple Silicon)
+            * **Windows**: `amd64`
+            
+            ### 🔍 Xác thực tệp tin (Integrity Verification):
+            Sử dụng mã băm trong file `checksums.txt` đi kèm để đối chiếu tính toàn vẹn của tệp tải về:
+            ```bash
+            sha256sum -c checksums.txt
+            ```
+            
+            ---
+            *Nhật ký thay đổi chi tiết được tự động liệt kê bên dưới.*
           draft: false
           prerelease: ${{ github.ref_type != 'tag' || github.event.inputs.tag_name == 'latest' }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send Telegram Notification
+        if: success() && (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'master')))
+        continue-on-error: ${{ env.ACT == 'true' }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d "parse_mode=HTML" \
+            --data-urlencode 'text=🚀 <b>[act-workflows] New Release Published!</b>
+
+          <b>Version:</b> <code>${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}</code>
+          <b>Branch:</b> <code>${{ github.ref_name }}</code>
+          <b>Commit:</b> <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">${{ github.sha }}</a>
+          <b>Released By:</b> ${{ github.actor }}
+
+          👉 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}">View Release & Download Binaries</a>'
