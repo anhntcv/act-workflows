@@ -3,14 +3,23 @@ name: Go Release
 on:
   push:
     branches: [main, master]
+    tags:
+      - 'v*'
   pull_request:
     branches: [main, master]
-  workflow_dispatch: # Thêm dòng này để cho phép chạy thủ công từ giao diện
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for the release (e.g. v1.0.0)'
+        required: false
+        default: 'latest'
 
 jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -44,3 +53,33 @@ jobs:
           file: ./coverage.out
           flags: unittests
           name: codecov-umbrella
+
+      - name: Build multi-platform binaries
+        run: |
+          mkdir -p dist
+          # Build for Linux (amd64 & arm64)
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/act-workflows-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/act-workflows-linux-arm64 .
+          # Build for macOS (Intel & Apple Silicon)
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/act-workflows-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/act-workflows-darwin-arm64 .
+          # Build for Windows (amd64)
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/act-workflows-windows-amd64.exe .
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+
+      - name: Create GitHub Release
+        if: success() && env.ACT != 'true' && (github.ref_type == 'tag' || github.event_name == 'workflow_dispatch')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}
+          draft: false
+          prerelease: ${{ github.ref_type != 'tag' || github.event.inputs.tag_name == 'latest' }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
