@@ -5,6 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch: # Thêm dòng này để cho phép chạy thủ công từ giao diện
 
 jobs:
   build:
