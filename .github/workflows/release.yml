@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -55,6 +57,26 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
+      - name: Determine Next Version
+        run: |
+          git fetch --tags --force || true
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          elif [ -n "${{ github.event.inputs.tag_name }}" ] && [ "${{ github.event.inputs.tag_name }}" != "latest" ]; then
+            echo "RELEASE_TAG=${{ github.event.inputs.tag_name }}" >> $GITHUB_ENV
+          else
+            LATEST_TAG=$(git tag --list "v1.0.*" --sort=-v:refname | head -n 1)
+            if [ -z "$LATEST_TAG" ]; then
+              NEW_TAG="v1.0.0"
+            else
+              PATCH=$(echo "$LATEST_TAG" | cut -d'.' -f3)
+              PATCH=$(echo "$PATCH" | tr -dc '0-9')
+              NEW_PATCH=$((PATCH + 1))
+              NEW_TAG="v1.0.$NEW_PATCH"
+            fi
+            echo "RELEASE_TAG=$NEW_TAG" >> $GITHUB_ENV
+          fi
+
       - name: Build multi-platform binaries
         run: |
           mkdir -p dist
@@ -79,10 +101,10 @@ jobs:
         with:
           files: |
             dist/*
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}
-          name: Release ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
           body: |
-            ## 🚀 Release Info - ${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}
+            ## 🚀 Release Info - ${{ env.RELEASE_TAG }}
             
             ### 📦 Nền tảng được build sẵn (Pre-built Binaries):
             * **Linux**: `amd64`, `arm64`
@@ -98,7 +120,7 @@ jobs:
             ---
             *Nhật ký thay đổi chi tiết được tự động liệt kê bên dưới.*
           draft: false
-          prerelease: ${{ github.ref_type != 'tag' || github.event.inputs.tag_name == 'latest' }}
+          prerelease: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -112,9 +134,9 @@ jobs:
             -d "parse_mode=HTML" \
             --data-urlencode 'text=🚀 <b>[act-workflows] New Release Published!</b>
 
-          <b>Version:</b> <code>${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}</code>
+          <b>Version:</b> <code>${{ env.RELEASE_TAG }}</code>
           <b>Branch:</b> <code>${{ github.ref_name }}</code>
           <b>Commit:</b> <a href="https://github.com/${{ github.repository }}/commit/${{ github.sha }}">${{ github.sha }}</a>
           <b>Released By:</b> ${{ github.actor }}
 
-          👉 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_type == 'tag' && github.ref_name || github.event.inputs.tag_name || 'latest' }}">View Release & Download Binaries</a>'
+          👉 <a href="https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}">View Release & Download Binaries</a>'
