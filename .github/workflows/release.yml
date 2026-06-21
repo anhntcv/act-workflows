@@ -47,8 +47,9 @@ jobs:
         run: go test -coverprofile=coverage.out ./...
 
       - name: Upload coverage to Codecov (optional)
-        if: github.repository_owner != '' # Thay điều kiện nếu cần
+        if: github.repository_owner != '' && env.ACT != 'true'
         uses: codecov/codecov-action@v4
+        continue-on-error: true
         with:
           file: ./coverage.out
           flags: unittests
