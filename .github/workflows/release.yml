@@ -4,15 +4,15 @@ on:
   push:
     branches: [main, master]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches: [main, master]
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Tag name for the release (e.g. v1.0.0)'
+        description: "Tag name for the release (e.g. v1.0.0)"
         required: false
-        default: 'latest'
+        default: "latest"
 
 jobs:
   build:
@@ -102,21 +102,21 @@ jobs:
           files: |
             dist/*
           tag_name: ${{ env.RELEASE_TAG }}
-          name: Release ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
           body: |
             ## 🚀 Release Info - ${{ env.RELEASE_TAG }}
-            
+
             ### 📦 Nền tảng được build sẵn (Pre-built Binaries):
             * **Linux**: `amd64`, `arm64`
             * **macOS (Darwin)**: `amd64` (Intel), `arm64` (Apple Silicon)
             * **Windows**: `amd64`
-            
+
             ### 🔍 Xác thực tệp tin (Integrity Verification):
             Sử dụng mã băm trong file `checksums.txt` đi kèm để đối chiếu tính toàn vẹn của tệp tải về:
             ```bash
             sha256sum -c checksums.txt
             ```
-            
+
             ---
             *Nhật ký thay đổi chi tiết được tự động liệt kê bên dưới.*
           draft: false
